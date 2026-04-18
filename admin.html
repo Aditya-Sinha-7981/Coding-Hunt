@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Wars — Admin Panel</title>
+  <meta name="description" content="Host control panel for Prompt Wars event management." />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .admin-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 768px) {
+      .admin-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (min-width: 1100px) {
+      .admin-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .control-card {
+      height: 100%;
+    }
+
+    .ctrl-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-label .ctrl-icon {
+      font-size: 1rem;
+    }
+
+    .ctrl-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    /* Round Number Spinner */
+    .round-spinner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .round-spinner input {
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      max-width: 90px;
+      color: var(--primary);
+    }
+
+    .round-spin-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+    }
+
+    .round-spin-btn:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 20px var(--primary-glow);
+      transform: scale(1.1);
+    }
+
+    /* Status live indicator */
+    .live-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    /* Stat cards */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-box {
+      padding: 14px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 1.8rem;
+      font-weight: 800;
+      display: block;
+    }
+
+    .stat-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .stat-pending {
+      color: var(--warning);
+    }
+
+    .stat-scored {
+      color: var(--success);
+    }
+
+    .stat-error {
+      color: var(--danger);
+    }
+
+    /* Mode pills */
+    .mode-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mode-pill {
+      padding: 8px 16px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: var(--font);
+      transition: all var(--transition);
+    }
+
+    .mode-pill:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .mode-pill.active-majority {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0, 212, 255, 0.1);
+    }
+
+    .mode-pill.active-minority {
+      border-color: var(--warning);
+      color: var(--warning);
+      background: rgba(255, 214, 0, 0.1);
+    }
+
+    .mode-pill.active-secret {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: rgba(255, 64, 129, 0.1);
+    }
+
+    /* Reveal section */
+    .reveal-section {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: var(--radius);
+      background: rgba(255, 64, 129, 0.07);
+      border: 1px solid rgba(255, 64, 129, 0.2);
+      display: none;
+    }
+
+    .reveal-section .reveal-label {
+      font-size: 0.8rem;
+      color: var(--danger);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    /* Full-width row cards */
+    .admin-full {
+      grid-column: 1 / -1;
+    }
+
+    /* Header */
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      background: rgba(10, 10, 26, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .live-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 12px var(--success);
+      animation: dotPulse 1.2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    /* Password Modal specifics */
+    .pw-modal-icon {
+      font-size: 3rem;
+      text-align: center;
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    .pw-modal-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .pw-modal-sub {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .admin-main {
+      padding: 24px 0 60px;
+    }
+
+    /* Action log */
+    .action-log {
+      max-height: 180px;
+      overflow-y: auto;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    .log-entry {
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+    }
+
+    .log-entry.success {
+      color: var(--success);
+    }
+
+    .log-entry.error {
+      color: var(--danger);
+    }
+
+    .log-entry time {
+      opacity: 0.5;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-mesh"></div>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <!-- Password Modal -->
+  <div class="modal-overlay show" id="pw-modal">
+    <div class="modal">
+      <div class="glass-card">
+        <span class="pw-modal-icon">🔐</span>
+        <h2 class="pw-modal-title">Admin Access</h2>
+        <p class="pw-modal-sub">Enter the host password to access the control panel.</p>
+        <div class="form-group">
+          <label for="pw-input">Password</label>
+          <input type="password" id="pw-input" class="form-input" placeholder="••••••••" autocomplete="off" />
+        </div>
+        <button class="btn btn-primary btn-full" id="pw-submit">
+          <span id="pw-btn-text">Unlock Panel</span>
+          <div class="spinner hidden" id="pw-spinner"></div>
+        </button>
+        <p class="text-muted text-sm text-center mt-3" id="pw-error" style="color:var(--danger);display:none;">Incorrect
+          password. Try again.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="admin-header">
+    <div class="brand-logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text" id="event-name-hdr">Prompt Wars Admin</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="live-dot"></div>
+      <span style="font-size:0.85rem;color:var(--text-muted);">Live Control</span>
+    </div>
+  </header>
+
+  <!-- Admin Main -->
+  <div class="page-content admin-main">
+    <div class="container-lg">
+
+      <!-- Current Status Banner -->
+      <div class="live-status-row anim-fade-down mb-6" style="grid-column:1/-1">
+        <div>
+          <p
+            style="font-size:0.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">
+            Current State</p>
+          <p style="font-weight:700;font-size:1.1rem;" id="status-summary">— Waiting —</p>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div class="badge" id="status-badge-main">
+            <div class="dot"></div> —
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-grid">
+
+        <!-- Card 1: Round Control -->
+        <div class="glass-card control-card anim-fade-up delay-1">
+          <p class="ctrl-label"><span class="ctrl-icon">🔢</span> Round Control</p>
+          <p class="ctrl-title">Set Active Round</p>
+          <div class="round-spinner mb-4">
+            <button class="round-spin-btn" id="round-dec">−</button>
+            <input type="number" id="round-input" class="form-input" value="1" min="1" max="20" />
+            <button class="round-spin-btn" id="round-inc">+</button>
+          </div>
+          <p class="text-muted text-sm mb-4" id="round-type-display">Type: —</p>
+          <button class="btn btn-primary btn-full" id="set-round-btn">Set Round</button>
+        </div>
+
+        <!-- Card 2: Status Control -->
+        <div class="glass-card control-card anim-fade-up delay-2">
+          <p class="ctrl-label"><span class="ctrl-icon">🚦</span> Round Status</p>
+          <p class="ctrl-title">Open / Close Round</p>
+          <div class="toggle-switch mb-4">
+            <button class="toggle-opt" id="btn-open" onclick="setStatus('open')">🟢 Open</button>
+            <button class="toggle-opt" id="btn-close" onclick="setStatus('closed')">🔴 Close</button>
+          </div>
+          <p class="text-muted text-sm">Opening a round lets participants submit. Closing it locks submissions and
+            triggers scoring for poll rounds.</p>
+        </div>
+
+        <!-- Card 3: Poll Mode -->
+        <div class="glass-card control-card anim-fade-up delay-3">
+          <p class="ctrl-label"><span class="ctrl-icon">🗳️</span> Poll Mode</p>
+          <p class="ctrl-title">Set Voting Mode</p>
+          <div class="mode-pills mb-4">
+            <button class="mode-pill" id="pill-majority" onclick="setPollMode('majority')">Majority</button>
+            <button class="mode-pill" id="pill-minority" onclick="setPollMode('minority')">Minority</button>
+            <button class="mode-pill" id="pill-secret" onclick="setPollMode('secret')">🤫 Secret</button>
+          </div>
+          <p class="text-muted text-sm">Set this <strong>before</strong> opening a poll round. Majority = popular side
+            wins. Minority = unpopular side wins. Secret = revealed by host.</p>
+
+          <!-- Secret Reveal -->
+          <div class="reveal-section" id="reveal-section">
+            <p class="reveal-label">🔐 Reveal Secret Poll Result</p>
+            <select id="reveal-mode-select" class="form-input mb-3">
+              <option value="majority">Majority Wins</option>
+              <option value="minority">Minority Wins</option>
+            </select>
+            <button class="btn btn-danger btn-full btn-sm" id="reveal-btn">⚡ Reveal Now</button>
+          </div>
+        </div>
+
+        <!-- Card 4: Submission Stats -->
+        <div class="glass-card control-card anim-fade-up delay-4">
+          <p class="ctrl-label"><span class="ctrl-icon">📊</span> Submissions</p>
+          <p class="ctrl-title">Current Round Stats</p>
+          <div class="stat-row mb-4">
+            <div class="stat-box">
+              <span class="stat-num stat-pending" id="stat-pending">—</span>
+              <span class="stat-lbl">Pending</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-num stat-scored" id="stat-scored">—</span>
+              <span class="stat-lbl">Scored</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-num stat-error" id="stat-error">—</span>
+              <span class="stat-lbl">Errors</span>
+            </div>
+          </div>
+          <div class="progress-bar mb-3">
+            <div class="progress-fill" id="score-progress" style="width:0%"></div>
+          </div>
+          <button class="btn btn-warning btn-full btn-sm" id="rescore-btn">🔄 Rescore Errors</button>
+        </div>
+
+        <!-- Card 5: Action Log -->
+        <div class="glass-card control-card anim-fade-up delay-5 admin-full">
+          <p class="ctrl-label"><span class="ctrl-icon">📋</span> Action Log</p>
+          <div class="action-log" id="action-log">
+            <div class="log-entry"><time>—</time> Admin panel loaded</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+  <script>
+    let adminPassword = '';
+    let currentRound = 1, currentStatus = 'closed', currentPollMode = 'majority';
+    let statusInterval = null;
+
+    // ── Password Modal ────────────────────────────────────────
+    document.getElementById('pw-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('pw-submit').click();
+    });
+
+    document.getElementById('pw-submit').addEventListener('click', async () => {
+      const pw = document.getElementById('pw-input').value.trim();
+      if (!pw) return;
+      document.getElementById('pw-btn-text').textContent = 'Verifying…';
+      document.getElementById('pw-spinner').classList.remove('hidden');
+      document.getElementById('pw-submit').disabled = true;
+      document.getElementById('pw-error').style.display = 'none';
+
+      // Validate by making a status request with password
+      const res = await callAPIGet({ action: 'leaderboard', password: pw });
+      if (res.success || res.error !== 'UNAUTHORIZED') {
+        adminPassword = pw;
+        sessionStorage.setItem('pw_admin_pass', pw);
+        closePwModal();
+        startAdminPolling();
+        log('Admin authenticated.', 'success');
+      } else {
+        document.getElementById('pw-error').style.display = 'block';
+        document.getElementById('pw-btn-text').textContent = 'Unlock Panel';
+        document.getElementById('pw-spinner').classList.add('hidden');
+        document.getElementById('pw-submit').disabled = false;
+      }
+    });
+
+    function closePwModal() {
+      const modal = document.getElementById('pw-modal');
+      modal.style.opacity = '0';
+      setTimeout(() => modal.style.display = 'none', 300);
+    }
+
+    // ── Init ──────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = sessionStorage.getItem('pw_admin_pass');
+      if (saved) {
+        adminPassword = saved;
+        closePwModal();
+        startAdminPolling();
+        log('Session resumed.', 'success');
+      }
+      setupRoundSpinner();
+    });
+
+    // ── Status Polling ────────────────────────────────────────
+    function startAdminPolling() {
+      fetchAdminStatus();
+      statusInterval = setInterval(fetchAdminStatus, 5000);
+    }
+
+    async function fetchAdminStatus() {
+      const res = await callAPIGet({ action: 'status' });
+      if (!res.success) return;
+      currentRound = res.roundNumber;
+      currentStatus = res.status;
+      currentPollMode = res.pollMode;
+      updateAdminUI();
+      document.getElementById('event-name-hdr').textContent = (res.eventName || 'Prompt Wars') + ' Admin';
+      document.title = res.eventName + ' — Admin';
+    }
+
+    function updateAdminUI() {
+      // Status summary
+      const typeLabel = currentStatus === 'open' ? '🟢 OPEN' : '🔴 CLOSED';
+      document.getElementById('status-summary').textContent =
+        `Round ${currentRound} · ${typeLabel}`;
+
+      const badge = document.getElementById('status-badge-main');
+      badge.className = `badge ${currentStatus === 'open' ? 'badge-open' : 'badge-closed'}`;
+      badge.innerHTML = `<div class="dot ${currentStatus === 'open' ? 'dot-pulse' : ''}"></div>${currentStatus.toUpperCase()}`;
+
+      // Round input
+      document.getElementById('round-input').value = currentRound;
+
+      // Status toggle
+      document.getElementById('btn-open').className =
+        'toggle-opt' + (currentStatus === 'open' ? ' active-open' : '');
+      document.getElementById('btn-close').className =
+        'toggle-opt' + (currentStatus === 'closed' ? ' active-closed' : '');
+
+      // Poll mode pills
+      ['majority', 'minority', 'secret'].forEach(m => {
+        document.getElementById('pill-' + m).className =
+          'mode-pill' + (currentPollMode === m ? ' active-' + m : '');
+      });
+
+      // Secret reveal
+      document.getElementById('reveal-section').style.display =
+        currentPollMode === 'secret' ? 'block' : 'none';
+    }
+
+    // ── Round Spinner ─────────────────────────────────────────
+    function setupRoundSpinner() {
+      document.getElementById('round-inc').addEventListener('click', () => {
+        const inp = document.getElementById('round-input');
+        inp.value = parseInt(inp.value || 1) + 1;
+        inp.style.animation = 'none';
+        void inp.offsetWidth;
+        inp.style.animation = 'scaleIn 0.2s cubic-bezier(0.4,0,0.2,1)';
+      });
+      document.getElementById('round-dec').addEventListener('click', () => {
+        const inp = document.getElementById('round-input');
+        const v = parseInt(inp.value || 1);
+        if (v > 1) inp.value = v - 1;
+        inp.style.animation = 'none';
+        void inp.offsetWidth;
+        inp.style.animation = 'scaleIn 0.2s cubic-bezier(0.4,0,0.2,1)';
+      });
+    }
+
+    // ── Set Round ─────────────────────────────────────────────
+    document.getElementById('set-round-btn').addEventListener('click', async () => {
+      const round = parseInt(document.getElementById('round-input').value);
+      if (!round || round < 1) { showToast('Enter a valid round number.', 'error'); return; }
+      const btn = document.getElementById('set-round-btn');
+      btn.disabled = true; btn.textContent = 'Setting…';
+      const res = await callAPI({ action: 'setControl', adminPassword, round });
+      btn.disabled = false; btn.textContent = 'Set Round';
+      if (res.success) {
+        showToast(`Round set to ${round} ✓`, 'success');
+        log(`Round changed to ${round}`, 'success');
+        fetchAdminStatus();
+      } else {
+        showToast(getErrorMessage(res.error), 'error');
+        log(`Set round failed: ${res.error}`, 'error');
+      }
+    });
+
+    // ── Set Status ────────────────────────────────────────────
+    async function setStatus(status) {
+      const res = await callAPI({ action: 'setControl', adminPassword, status });
+      if (res.success) {
+        currentStatus = status;
+        updateAdminUI();
+        showToast(`Round ${status === 'open' ? '🟢 Opened' : '🔴 Closed'}`, status === 'open' ? 'success' : 'warning');
+        log(`Status → ${status}`, 'success');
+        fetchAdminStatus();
+      } else {
+        showToast(getErrorMessage(res.error), 'error');
+        log(`Status change failed: ${res.error}`, 'error');
+      }
+    }
+
+    // ── Set Poll Mode ─────────────────────────────────────────
+    async function setPollMode(mode) {
+      const res = await callAPI({ action: 'setControl', adminPassword, pollMode: mode });
+      if (res.success) {
+        currentPollMode = mode;
+        updateAdminUI();
+        showToast(`Poll mode: ${mode} ✓`, 'success');
+        log(`Poll mode → ${mode}`, 'success');
+      } else {
+        showToast(getErrorMessage(res.error), 'error');
+        log(`Poll mode change failed: ${res.error}`, 'error');
+      }
+    }
+
+    // ── Reveal Poll ───────────────────────────────────────────
+    document.getElementById('reveal-btn').addEventListener('click', async () => {
+      const mode = document.getElementById('reveal-mode-select').value;
+      const btn = document.getElementById('reveal-btn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="margin:auto"></div>';
+      const res = await callAPI({
+        action: 'revealPoll',
+        adminPassword,
+        round: currentRound,
+        mode
+      });
+      btn.disabled = false; btn.textContent = '⚡ Reveal Now';
+      if (res.success) {
+        showToast(`Poll revealed! ${res.scoresSaved} scores saved ✓`, 'success');
+        log(`Poll revealed: round ${currentRound}, mode ${mode}, ${res.scoresSaved} scores.`, 'success');
+      } else {
+        showToast(getErrorMessage(res.error), 'error');
+        log(`Reveal failed: ${res.error}`, 'error');
+      }
+    });
+
+    // ── Rescore ───────────────────────────────────────────────
+    document.getElementById('rescore-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('rescore-btn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="margin:auto"></div>';
+      const res = await callAPI({ action: 'rescoreRound', adminPassword, round: currentRound });
+      btn.disabled = false; btn.textContent = '🔄 Rescore Errors';
+      if (res.success) {
+        showToast(`${res.requeued} submission(s) queued for re-scoring ✓`, 'success');
+        log(`Rescore: ${res.requeued} requeued for round ${currentRound}.`, 'success');
+      } else {
+        showToast(getErrorMessage(res.error), 'error');
+        log(`Rescore failed: ${res.error}`, 'error');
+      }
+    });
+
+    // ── Action Log ────────────────────────────────────────────
+    function log(message, type = '') {
+      const logEl = document.getElementById('action-log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      const now = new Date();
+      entry.innerHTML = `<time>${now.toLocaleTimeString()}</time>${message}`;
+      logEl.insertBefore(entry, logEl.firstChild);
+    }
+  </script>
+</body>
+
+</html>

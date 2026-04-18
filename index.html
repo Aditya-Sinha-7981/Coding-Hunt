@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Wars — Register</title>
+  <meta name="description" content="Register your team for Prompt Wars — the ultimate AI image and poll challenge at your college fest." />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .hero-section {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .logo-wrapper {
+      margin-bottom: 32px;
+      animation: fadeInDown 0.7s cubic-bezier(0.4,0,0.2,1) both;
+    }
+    .logo-title {
+      font-size: clamp(2.8rem, 8vw, 5rem);
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      animation: glitch 6s ease-in-out infinite;
+      background: linear-gradient(135deg, #6C63FF, #00D4FF 50%, #FF4081);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .logo-sub {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 1rem;
+      margin-top: 6px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .register-card {
+      width: 100%;
+      max-width: 460px;
+      animation: fadeInUp 0.7s 0.2s cubic-bezier(0.4,0,0.2,1) both;
+    }
+    .card-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .card-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+    .returning-notice {
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.25);
+      color: var(--accent);
+      font-size: 0.88rem;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .success-card {
+      text-align: center;
+      display: none;
+    }
+    .success-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+      display: block;
+      animation: scaleIn 0.5s cubic-bezier(0.4,0,0.2,1) both;
+    }
+    .success-team {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--success), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .dots-loader {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    .dots-loader span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: dotBounce 1.2s ease-in-out infinite;
+    }
+    .dots-loader span:nth-child(2) { animation-delay: 0.2s; }
+    .dots-loader span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotBounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    .features-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 24px;
+      animation: fadeIn 0.7s 0.6s both;
+    }
+    .feature-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 100px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .feature-chip span { font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <canvas id="particles-canvas"></canvas>
+  <div class="bg-mesh"></div>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="page-content hero-section">
+    <div class="logo-wrapper">
+      <h1 class="logo-title">⚡ Prompt Wars</h1>
+      <p class="logo-sub">AI Image Challenge · Live Polls · Leaderboard</p>
+    </div>
+
+    <!-- Registration Card -->
+    <div class="register-card">
+      <div class="glass-card" id="register-form-card">
+        <h2 class="card-title">Register Your Team</h2>
+        <p class="card-subtitle">Fill in your details to join the battle!</p>
+
+        <div class="returning-notice" id="returning-notice">
+          ℹ️ This email is already registered. Please use the device you originally registered on.
+        </div>
+
+        <form id="register-form" autocomplete="off">
+          <div class="form-group">
+            <label for="team-name">Team Name *</label>
+            <input type="text" id="team-name" class="form-input" placeholder="e.g. Neural Ninjas" required maxlength="50" />
+          </div>
+          <div class="form-group">
+            <label for="member1">Member 1 (Leader) *</label>
+            <input type="text" id="member1" class="form-input" placeholder="Full name" required maxlength="60" />
+          </div>
+          <div class="form-group">
+            <label for="member2">Member 2 (Optional)</label>
+            <input type="text" id="member2" class="form-input" placeholder="Full name" maxlength="60" />
+          </div>
+          <div class="form-group">
+            <label for="member3">Member 3 (Optional)</label>
+            <input type="text" id="member3" class="form-input" placeholder="Full name" maxlength="60" />
+          </div>
+          <div class="form-group">
+            <label for="email">Team Email *</label>
+            <input type="email" id="email" class="form-input" placeholder="team@example.com" required maxlength="100" />
+            <div class="dots-loader hidden" id="email-checking">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full btn-lg mt-4" id="submit-btn">
+            <span id="btn-text">⚡ Register Now</span>
+            <div class="spinner hidden" id="btn-spinner"></div>
+          </button>
+        </form>
+      </div>
+
+      <!-- Success Card -->
+      <div class="glass-card success-card" id="success-card">
+        <span class="success-icon">🎉</span>
+        <p class="text-muted text-sm mb-2">Welcome to Prompt Wars!</p>
+        <p class="success-team" id="success-team-name">Team Alpha</p>
+        <p class="text-muted mt-3 mb-6" style="font-size:0.9rem">You're all set! Redirecting you to the event…</p>
+        <div class="progress-bar">
+          <div class="progress-fill" id="redirect-progress" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="features-row">
+      <div class="feature-chip"><span>🖼️</span> AI Image Rounds</div>
+      <div class="feature-chip"><span>🗳️</span> Live Polls</div>
+      <div class="feature-chip"><span>🏆</span> Real-time Leaderboard</div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+  <script>
+    // ── Particles ────────────────────────────────────────────
+    (function() {
+      const canvas = document.getElementById('particles-canvas');
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+      window.addEventListener('resize', resize);
+      resize();
+      for (let i = 0; i < 70; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 1.5 + 0.5,
+          dx: (Math.random() - 0.5) * 0.3,
+          dy: (Math.random() - 0.5) * 0.3,
+          o: Math.random() * 0.5 + 0.1
+        });
+      }
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(108,99,255,${p.o})`;
+          ctx.fill();
+          p.x += p.dx; p.y += p.dy;
+          if (p.x < 0 || p.x > canvas.width)  p.dx *= -1;
+          if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+        });
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    // ── Confetti ─────────────────────────────────────────────
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const pieces = [];
+      const colors = ['#6C63FF','#00D4FF','#FF4081','#00E676','#FFD600'];
+      for (let i = 0; i < 120; i++) {
+        pieces.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 1.5) * 10,
+          r: Math.random() * 6 + 3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rot: Math.random() * 360,
+          rspeed: (Math.random() - 0.5) * 10,
+          life: 1
+        });
+      }
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        pieces.forEach(p => {
+          if (p.life <= 0) return;
+          p.y += p.vy; p.vy += 0.25;
+          p.x += p.vx; p.vx *= 0.99;
+          p.rot += p.rspeed;
+          p.life -= 0.012;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot * Math.PI / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 2.5);
+          ctx.restore();
+          if (p.life > 0) alive = true;
+        });
+        if (alive) requestAnimationFrame(animate);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      animate();
+    }
+
+    // ── Registration Logic ────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      // If already registered, go to participant
+      if (isRegistered()) {
+        window.location.href = 'participant.html';
+        return;
+      }
+
+      const form = document.getElementById('register-form');
+      const emailInput = document.getElementById('email');
+      const submitBtn = document.getElementById('submit-btn');
+      const btnText = document.getElementById('btn-text');
+      const btnSpinner = document.getElementById('btn-spinner');
+      const returningNotice = document.getElementById('returning-notice');
+      const emailChecking = document.getElementById('email-checking');
+
+      // Email check on blur
+      let emailCheckTimer;
+      emailInput.addEventListener('blur', async () => {
+        const email = emailInput.value.trim().toLowerCase();
+        if (!email || !email.includes('@')) return;
+        emailChecking.classList.remove('hidden');
+        clearTimeout(emailCheckTimer);
+        emailCheckTimer = setTimeout(async () => {
+          const res = await callAPI({ action: 'checkEmail', email });
+          emailChecking.classList.add('hidden');
+          if (res.success && res.exists) {
+            returningNotice.style.display = 'block';
+            returningNotice.style.animation = 'fadeInUp 0.4s both';
+          } else {
+            returningNotice.style.display = 'none';
+          }
+        }, 400);
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const teamName  = document.getElementById('team-name').value.trim();
+        const member1   = document.getElementById('member1').value.trim();
+        const member2   = document.getElementById('member2').value.trim();
+        const member3   = document.getElementById('member3').value.trim();
+        const email     = emailInput.value.trim().toLowerCase();
+
+        if (!teamName || !member1 || !email) {
+          showToast(getErrorMessage('MISSING_FIELDS'), 'error');
+          return;
+        }
+
+        // Loading state
+        submitBtn.disabled = true;
+        btnText.textContent = 'Registering…';
+        btnSpinner.classList.remove('hidden');
+
+        const res = await callAPI({ action: 'register', teamName, member1, member2, member3, email });
+
+        if (res.success) {
+          localStorage.setItem('pw_teamId',    res.teamId);
+          localStorage.setItem('pw_authToken', res.authToken);
+          localStorage.setItem('pw_email',     email);
+          localStorage.setItem('pw_teamName',  teamName);
+
+          // Show success
+          document.getElementById('register-form-card').style.display = 'none';
+          const successCard = document.getElementById('success-card');
+          successCard.style.display = 'block';
+          successCard.style.animation = 'scaleIn 0.5s cubic-bezier(0.4,0,0.2,1)';
+          document.getElementById('success-team-name').textContent = teamName;
+          launchConfetti();
+
+          // Progress bar redirect
+          let pct = 0;
+          const pBar = document.getElementById('redirect-progress');
+          const iv = setInterval(() => {
+            pct += 2;
+            pBar.style.width = pct + '%';
+            if (pct >= 100) { clearInterval(iv); window.location.href = 'participant.html'; }
+          }, 60);
+        } else {
+          submitBtn.disabled = false;
+          btnText.textContent = '⚡ Register Now';
+          btnSpinner.classList.add('hidden');
+          showToast(getErrorMessage(res.error), 'error');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

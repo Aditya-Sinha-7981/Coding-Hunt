@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prompt Wars — API Tester</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    body { padding-bottom: 60px; }
+
+    .tester-header {
+      padding: 24px 28px 20px;
+      background: rgba(10,10,26,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .tester-title {
+      font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .tester-sub { font-size: 0.82rem; color: var(--text-muted); margin-top: 3px; }
+
+    .url-bar {
+      display: flex; gap: 10px; align-items: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      margin-bottom: 24px;
+    }
+    .url-bar label { font-size: 0.78rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .url-bar input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text); font-family: 'Courier New', monospace; font-size: 0.85rem;
+    }
+    .url-bar input::placeholder { color: var(--text-dim); }
+    .url-bar button { flex-shrink: 0; }
+
+    /* Tabs for endpoint groups */
+    .tab-bar {
+      display: flex; gap: 6px; overflow-x: auto;
+      padding-bottom: 2px; margin-bottom: 24px;
+      scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      padding: 8px 18px; border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-family: var(--font); font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap; transition: all var(--transition);
+    }
+    .tab-btn.active {
+      background: rgba(108,99,255,0.18);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Endpoint card */
+    .endpoint-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 20px;
+      transition: border-color var(--transition);
+    }
+    .endpoint-card:hover { border-color: rgba(108,99,255,0.3); }
+
+    .endpoint-head {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; cursor: pointer;
+      user-select: none;
+    }
+    .method-badge {
+      padding: 4px 10px; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 800;
+      font-family: 'Courier New', monospace; letter-spacing: 0.05em;
+    }
+    .method-get  { background: rgba(0,230,118,0.15); color: var(--success); border: 1px solid rgba(0,230,118,0.3); }
+    .method-post { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }
+    .method-admin { background: rgba(255,64,129,0.12); color: var(--danger); border: 1px solid rgba(255,64,129,0.25); }
+
+    .endpoint-path {
+      font-family: 'Courier New', monospace;
+      font-size: 0.88rem; color: var(--text); font-weight: 600;
+      flex: 1;
+    }
+    .endpoint-desc { font-size: 0.78rem; color: var(--text-muted); }
+    .toggle-arrow { color: var(--text-muted); transition: transform var(--transition); }
+    .endpoint-card.open .toggle-arrow { transform: rotate(90deg); }
+
+    .endpoint-body {
+      display: none;
+      padding: 0 20px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .endpoint-card.open .endpoint-body { display: block; }
+
+    /* Fields grid */
+    .fields-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .field-group label {
+      display: block; font-size: 0.75rem; font-weight: 600;
+      color: var(--text-muted); margin-bottom: 5px;
+    }
+    .field-group input, .field-group select {
+      width: 100%; padding: 10px 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text); font-family: var(--font); font-size: 0.85rem;
+      outline: none; transition: border-color var(--transition);
+    }
+    .field-group input:focus, .field-group select:focus { border-color: var(--primary); }
+    .field-group input::placeholder { color: var(--text-dim); }
+
+    .run-row { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+
+    /* Response box */
+    .response-box {
+      margin-top: 14px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: none;
+    }
+    .response-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .response-head.ok   { background: rgba(0,230,118,0.15); color: var(--success); border-bottom: 1px solid rgba(0,230,118,0.2); }
+    .response-head.err  { background: rgba(255,64,129,0.12); color: var(--danger); border-bottom: 1px solid rgba(255,64,129,0.2); }
+    .response-head.wait { background: rgba(255,214,0,0.1); color: var(--warning); border-bottom: 1px solid rgba(255,214,0,0.15); }
+    .response-pre {
+      padding: 14px;
+      background: rgba(0,0,0,0.4);
+      color: #a8e6cf;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .response-time { color: var(--text-dim); font-weight: 400; }
+
+    /* Horizontal rule shorthand */
+    hr.section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* Section heading */
+    .section-heading {
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    /* Auto-filled notice */
+    .autofill-note {
+      font-size: 0.75rem; color: var(--accent); margin-top: 6px;
+    }
+
+    /* Quick status bar at top */
+    .quick-status {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .qs-chip {
+      padding: 6px 14px; border-radius: 100px;
+      background: var(--surface); border: 1px solid var(--border);
+      font-size: 0.78rem; font-weight: 500; color: var(--text-muted);
+    }
+    .qs-chip.live { border-color: rgba(0,230,118,0.4); color: var(--success); }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <!-- Header -->
+  <div class="tester-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <p class="tester-title">🧪 API Tester — Prompt Wars</p>
+        <p class="tester-sub">Test every backend endpoint from the API contract</p>
+      </div>
+      <a href="index.html" class="btn btn-ghost btn-sm">← Back to App</a>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="container-lg" style="padding-top:28px">
+
+      <!-- API URL Bar -->
+      <div class="url-bar anim-fade-down">
+        <label>API URL</label>
+        <input type="text" id="api-url-input" placeholder="https://script.google.com/macros/s/YOUR_ID/exec" />
+        <button class="btn btn-accent btn-sm" onclick="saveUrl()">Save</button>
+      </div>
+
+      <!-- Quick Status -->
+      <div class="quick-status" id="quick-status">
+        <div class="qs-chip" id="qs-round">Round: —</div>
+        <div class="qs-chip" id="qs-type">Type: —</div>
+        <div class="qs-chip" id="qs-status">Status: —</div>
+        <div class="qs-chip" id="qs-mode">Mode: —</div>
+        <button class="btn btn-ghost btn-sm" onclick="quickPing()">🔄 Ping Status</button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="showTab('get')">📥 GET Endpoints</button>
+        <button class="tab-btn" onclick="showTab('participant')">👤 Participant</button>
+        <button class="tab-btn" onclick="showTab('admin')">🔐 Admin</button>
+      </div>
+
+      <!-- ═══════════════ GET ENDPOINTS ═══════════════ -->
+      <div id="tab-get">
+        <p class="section-heading">Read-only endpoints — No auth required</p>
+
+        <!-- status -->
+        <div class="endpoint-card" id="card-status">
+          <div class="endpoint-head" onclick="toggleCard('card-status')">
+            <span class="method-badge method-get">GET</span>
+            <span class="endpoint-path">?action=status</span>
+            <span class="endpoint-desc">Current round state (poll every 5s)</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Returns round number, round type, status (open/closed), poll mode, and event name. No parameters needed.</p>
+            <div class="run-row">
+              <button class="btn btn-success btn-sm" onclick="runGet('status', {action:'status'})">
+                ▶ Run
+              </button>
+              <span class="text-muted text-xs">No parameters required</span>
+            </div>
+            <div class="response-box" id="res-status"></div>
+          </div>
+        </div>
+
+        <!-- roundinfo -->
+        <div class="endpoint-card" id="card-roundinfo">
+          <div class="endpoint-head" onclick="toggleCard('card-roundinfo')">
+            <span class="method-badge method-get">GET</span>
+            <span class="endpoint-path">?action=roundinfo&round=N</span>
+            <span class="endpoint-desc">Full data for a specific round</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Returns reference URL + prompt for image rounds, or question + options for poll rounds.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Round Number *</label>
+                <input type="number" id="ri-round" value="1" min="1"/>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-success btn-sm" onclick="runRoundInfo()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-roundinfo"></div>
+          </div>
+        </div>
+
+        <!-- pollresults -->
+        <div class="endpoint-card" id="card-pollresults">
+          <div class="endpoint-head" onclick="toggleCard('card-pollresults')">
+            <span class="method-badge method-get">GET</span>
+            <span class="endpoint-path">?action=pollresults&round=N</span>
+            <span class="endpoint-desc">Live vote counts for A and B</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Returns countA, countB, total. Public endpoint — no auth needed. Call every 3s during polls.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Round Number *</label>
+                <input type="number" id="pr-round" value="1" min="1"/>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-success btn-sm" onclick="runPollResults()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-pollresults"></div>
+          </div>
+        </div>
+
+        <!-- leaderboard -->
+        <div class="endpoint-card" id="card-leaderboard">
+          <div class="endpoint-head" onclick="toggleCard('card-leaderboard')">
+            <span class="method-badge method-get">GET</span>
+            <span class="endpoint-path">?action=leaderboard&password=XXXX</span>
+            <span class="endpoint-desc">Full ranked leaderboard (password protected)</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Returns ranked team list. Must provide admin password from Config tab A2.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Admin Password *</label>
+                <input type="password" id="lb-pw" placeholder="Your admin password"/>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-success btn-sm" onclick="runLeaderboard()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-leaderboard"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ PARTICIPANT ENDPOINTS ═══════════════ -->
+      <div id="tab-participant" class="hidden">
+        <p class="section-heading">Participant write endpoints — require teamId + authToken</p>
+
+        <!-- Auth Auto-fill -->
+        <div class="glass-card glass-card-sm mb-6 anim-fade-up" style="background:rgba(108,99,255,0.07);border-color:rgba(108,99,255,0.25)">
+          <p style="font-size:0.82rem;color:var(--primary);font-weight:700;margin-bottom:10px;">🔑 Auth Credentials (auto-filled from localStorage)</p>
+          <div class="fields-grid">
+            <div class="field-group">
+              <label>teamId</label>
+              <input type="text" id="auth-team-id" placeholder="e.g. T001"/>
+            </div>
+            <div class="field-group">
+              <label>authToken</label>
+              <input type="text" id="auth-token" placeholder="16-char token"/>
+            </div>
+          </div>
+          <p class="autofill-note">💡 Register first on <a href="index.html" style="color:var(--accent)">index.html</a> — credentials auto-fill from localStorage.</p>
+        </div>
+
+        <!-- checkEmail -->
+        <div class="endpoint-card" id="card-checkemail">
+          <div class="endpoint-head" onclick="toggleCard('card-checkemail')">
+            <span class="method-badge method-post">POST</span>
+            <span class="endpoint-path">checkEmail</span>
+            <span class="endpoint-desc">Check if email is already registered</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Does NOT return authToken — for identifying returning users only.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Email *</label>
+                <input type="email" id="ce-email" placeholder="team@example.com"/>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-accent btn-sm" onclick="runCheckEmail()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-checkemail"></div>
+          </div>
+        </div>
+
+        <!-- register -->
+        <div class="endpoint-card" id="card-register">
+          <div class="endpoint-head" onclick="toggleCard('card-register')">
+            <span class="method-badge method-post">POST</span>
+            <span class="endpoint-path">register</span>
+            <span class="endpoint-desc">Register a new team — returns teamId + authToken</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">⚠️ authToken is returned ONCE only. Store it immediately.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Team Name *</label>
+                <input type="text" id="reg-name" placeholder="Test Team"/>
+              </div>
+              <div class="field-group">
+                <label>Member 1 *</label>
+                <input type="text" id="reg-m1" placeholder="Full name"/>
+              </div>
+              <div class="field-group">
+                <label>Member 2</label>
+                <input type="text" id="reg-m2" placeholder="Optional"/>
+              </div>
+              <div class="field-group">
+                <label>Member 3</label>
+                <input type="text" id="reg-m3" placeholder="Optional"/>
+              </div>
+              <div class="field-group">
+                <label>Email *</label>
+                <input type="email" id="reg-email" placeholder="test@example.com"/>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-accent btn-sm" onclick="runRegister()">▶ Run</button>
+              <span class="text-xs text-muted">Will auto-save credentials to localStorage</span>
+            </div>
+            <div class="response-box" id="res-register"></div>
+          </div>
+        </div>
+
+        <!-- submitVote -->
+        <div class="endpoint-card" id="card-vote">
+          <div class="endpoint-head" onclick="toggleCard('card-vote')">
+            <span class="method-badge method-post">POST</span>
+            <span class="endpoint-path">submitVote</span>
+            <span class="endpoint-desc">Cast or switch vote for poll round</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">5-second cooldown between switches. Vote must be "A" or "B".</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Round *</label>
+                <input type="number" id="sv-round" value="1"/>
+              </div>
+              <div class="field-group">
+                <label>Vote *</label>
+                <select id="sv-vote">
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                </select>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-accent btn-sm" onclick="runSubmitVote()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-vote"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ ADMIN ENDPOINTS ═══════════════ -->
+      <div id="tab-admin" class="hidden">
+        <p class="section-heading">Admin endpoints — require adminPassword</p>
+
+        <div class="glass-card glass-card-sm mb-6" style="background:rgba(255,64,129,0.06);border-color:rgba(255,64,129,0.2)">
+          <p style="font-size:0.82rem;color:var(--danger);font-weight:700;margin-bottom:10px;">🔐 Admin Password (from Config tab A2)</p>
+          <div class="field-group">
+            <label>Admin Password</label>
+            <input type="password" id="admin-pw" placeholder="Your host password"/>
+          </div>
+        </div>
+
+        <!-- setControl -->
+        <div class="endpoint-card" id="card-setcontrol">
+          <div class="endpoint-head" onclick="toggleCard('card-setcontrol')">
+            <span class="method-badge method-admin">POST</span>
+            <span class="endpoint-path">setControl</span>
+            <span class="endpoint-desc">Change round, status, or poll mode</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Send only the fields you want to change. All are optional.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Round (optional)</label>
+                <input type="number" id="sc-round" placeholder="e.g. 2" min="1"/>
+              </div>
+              <div class="field-group">
+                <label>Status (optional)</label>
+                <select id="sc-status">
+                  <option value="">— don't change —</option>
+                  <option value="open">open</option>
+                  <option value="closed">closed</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Poll Mode (optional)</label>
+                <select id="sc-pollmode">
+                  <option value="">— don't change —</option>
+                  <option value="majority">majority</option>
+                  <option value="minority">minority</option>
+                  <option value="secret">secret</option>
+                </select>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-danger btn-sm" onclick="runSetControl()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-setcontrol"></div>
+          </div>
+        </div>
+
+        <!-- revealPoll -->
+        <div class="endpoint-card" id="card-revealpoll">
+          <div class="endpoint-head" onclick="toggleCard('card-revealpoll')">
+            <span class="method-badge method-admin">POST</span>
+            <span class="endpoint-path">revealPoll</span>
+            <span class="endpoint-desc">Reveal secret poll result + trigger scoring</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Round must be closed first. Triggers poll scoring immediately.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Round *</label>
+                <input type="number" id="rp-round" value="1" min="1"/>
+              </div>
+              <div class="field-group">
+                <label>Reveal Mode *</label>
+                <select id="rp-mode">
+                  <option value="majority">majority</option>
+                  <option value="minority">minority</option>
+                </select>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-danger btn-sm" onclick="runRevealPoll()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-revealpoll"></div>
+          </div>
+        </div>
+
+        <!-- rescoreRound -->
+        <div class="endpoint-card" id="card-rescore">
+          <div class="endpoint-head" onclick="toggleCard('card-rescore')">
+            <span class="method-badge method-admin">POST</span>
+            <span class="endpoint-path">rescoreRound</span>
+            <span class="endpoint-desc">Reset error submissions to pending for re-scoring</span>
+            <span class="toggle-arrow">▶</span>
+          </div>
+          <div class="endpoint-body">
+            <p class="text-muted text-sm mb-3">Requeues error-status submissions so the 60s Gemini trigger picks them up again.</p>
+            <div class="fields-grid">
+              <div class="field-group">
+                <label>Round *</label>
+                <input type="number" id="rr-round" value="1" min="1"/>
+              </div>
+            </div>
+            <div class="run-row">
+              <button class="btn btn-danger btn-sm" onclick="runRescore()">▶ Run</button>
+            </div>
+            <div class="response-box" id="res-rescore"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+  <script>
+    // ── Override API_URL with tester bar ─────────────────────
+    let TEST_API_URL = API_URL;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // Load saved URL
+      const saved = localStorage.getItem('tester_api_url') || API_URL;
+      document.getElementById('api-url-input').value = saved;
+      TEST_API_URL = saved;
+
+      // Auto-fill auth from localStorage
+      document.getElementById('auth-team-id').value = localStorage.getItem('pw_teamId') || '';
+      document.getElementById('auth-token').value   = localStorage.getItem('pw_authToken') || '';
+
+      // Quick ping
+      quickPing();
+    });
+
+    function saveUrl() {
+      const url = document.getElementById('api-url-input').value.trim();
+      if (!url) { showToast('Enter a valid URL.', 'error'); return; }
+      TEST_API_URL = url;
+      localStorage.setItem('tester_api_url', url);
+      showToast('API URL saved! ✓', 'success');
+      quickPing();
+    }
+
+    // ── Tab handling ──────────────────────────────────────────
+    function showTab(name) {
+      ['get','participant','admin'].forEach(t => {
+        document.getElementById('tab-' + t).classList.add('hidden');
+      });
+      document.getElementById('tab-' + name).classList.remove('hidden');
+      document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.remove('active');
+      });
+      event.target.classList.add('active');
+    }
+
+    // ── Card toggle ───────────────────────────────────────────
+    function toggleCard(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    // ── API helpers ───────────────────────────────────────────
+    async function testGet(params) {
+      const url = TEST_API_URL + '?' + new URLSearchParams(params).toString();
+      const t = Date.now();
+      const res = await fetch(url);
+      const data = await res.json();
+      return { data, ms: Date.now() - t };
+    }
+
+    async function testPost(body) {
+      const t = Date.now();
+      const res = await fetch(TEST_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      return { data, ms: Date.now() - t };
+    }
+
+    function showResponse(boxId, data, ms) {
+      const box = document.getElementById(boxId);
+      box.style.display = 'block';
+      box.style.animation = 'fadeInUp 0.3s cubic-bezier(0.4,0,0.2,1)';
+      const ok = data.success;
+      box.innerHTML = `
+        <div class="response-head ${ok ? 'ok' : 'err'}">
+          <span>${ok ? '✓ SUCCESS' : '✕ ERROR: ' + (data.error || 'Unknown')}</span>
+          <span class="response-time">${ms}ms</span>
+        </div>
+        <pre class="response-pre">${JSON.stringify(data, null, 2)}</pre>`;
+    }
+
+    function setLoading(btnEl) {
+      btnEl.disabled = true;
+      btnEl.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:auto"></div>';
+    }
+    function resetBtn(btnEl, txt) {
+      btnEl.disabled = false;
+      btnEl.textContent = txt;
+    }
+
+    // ── Run functions ─────────────────────────────────────────
+    async function quickPing() {
+      try {
+        const { data } = await testGet({ action: 'status' });
+        if (data.success) {
+          document.getElementById('qs-round').textContent  = `Round: ${data.roundNumber}`;
+          document.getElementById('qs-type').textContent   = `Type: ${data.roundType}`;
+          document.getElementById('qs-status').className   = `qs-chip ${data.status === 'open' ? 'live' : ''}`;
+          document.getElementById('qs-status').textContent = `Status: ${data.status}`;
+          document.getElementById('qs-mode').textContent   = `Mode: ${data.pollMode}`;
+          showToast(`API is live! Round ${data.roundNumber} — ${data.status}`, 'success');
+        } else {
+          showToast('API reachable but returned error: ' + data.error, 'warning');
+        }
+      } catch(e) {
+        showToast('Cannot reach API. Check the URL above.', 'error');
+      }
+    }
+
+    async function runGet(resId, params) {
+      const btn = event.target; setLoading(btn);
+      try {
+        const { data, ms } = await testGet(params);
+        showResponse('res-' + resId, data, ms);
+      } catch(e) {
+        showResponse('res-' + resId, { success: false, error: 'NETWORK_ERROR', detail: e.message }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runRoundInfo() {
+      const btn = event.target; setLoading(btn);
+      const round = document.getElementById('ri-round').value;
+      try {
+        const { data, ms } = await testGet({ action: 'roundinfo', round });
+        showResponse('res-roundinfo', data, ms);
+      } catch(e) {
+        showResponse('res-roundinfo', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runPollResults() {
+      const btn = event.target; setLoading(btn);
+      const round = document.getElementById('pr-round').value;
+      try {
+        const { data, ms } = await testGet({ action: 'pollresults', round });
+        showResponse('res-pollresults', data, ms);
+      } catch(e) {
+        showResponse('res-pollresults', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runLeaderboard() {
+      const btn = event.target; setLoading(btn);
+      const password = document.getElementById('lb-pw').value;
+      try {
+        const { data, ms } = await testGet({ action: 'leaderboard', password });
+        showResponse('res-leaderboard', data, ms);
+      } catch(e) {
+        showResponse('res-leaderboard', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runCheckEmail() {
+      const btn = event.target; setLoading(btn);
+      const email = document.getElementById('ce-email').value.trim().toLowerCase();
+      if (!email) { resetBtn(btn, '▶ Run'); showToast('Enter an email.','error'); return; }
+      try {
+        const { data, ms } = await testPost({ action: 'checkEmail', email });
+        showResponse('res-checkemail', data, ms);
+      } catch(e) {
+        showResponse('res-checkemail', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runRegister() {
+      const btn = event.target; setLoading(btn);
+      const body = {
+        action: 'register',
+        teamName: document.getElementById('reg-name').value.trim(),
+        member1:  document.getElementById('reg-m1').value.trim(),
+        member2:  document.getElementById('reg-m2').value.trim(),
+        member3:  document.getElementById('reg-m3').value.trim(),
+        email:    document.getElementById('reg-email').value.trim().toLowerCase()
+      };
+      try {
+        const { data, ms } = await testPost(body);
+        showResponse('res-register', data, ms);
+        if (data.success) {
+          localStorage.setItem('pw_teamId',    data.teamId);
+          localStorage.setItem('pw_authToken', data.authToken);
+          localStorage.setItem('pw_email',     body.email);
+          localStorage.setItem('pw_teamName',  body.teamName);
+          document.getElementById('auth-team-id').value = data.teamId;
+          document.getElementById('auth-token').value   = data.authToken;
+          showToast(`Registered! teamId=${data.teamId} saved.`, 'success');
+        }
+      } catch(e) {
+        showResponse('res-register', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runSubmitVote() {
+      const btn = event.target; setLoading(btn);
+      const teamId    = document.getElementById('auth-team-id').value.trim();
+      const authToken = document.getElementById('auth-token').value.trim();
+      if (!teamId || !authToken) { resetBtn(btn, '▶ Run'); showToast('Fill teamId + authToken above.','error'); return; }
+      const body = {
+        action: 'submitVote',
+        teamId, authToken,
+        round:     parseInt(document.getElementById('sv-round').value),
+        vote:      document.getElementById('sv-vote').value,
+        timestamp: Date.now()
+      };
+      try {
+        const { data, ms } = await testPost(body);
+        showResponse('res-vote', data, ms);
+      } catch(e) {
+        showResponse('res-vote', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runSetControl() {
+      const btn = event.target; setLoading(btn);
+      const adminPassword = document.getElementById('admin-pw').value;
+      if (!adminPassword) { resetBtn(btn, '▶ Run'); showToast('Enter admin password.','error'); return; }
+      const body = { action: 'setControl', adminPassword };
+      const round   = document.getElementById('sc-round').value;
+      const status  = document.getElementById('sc-status').value;
+      const pollMode = document.getElementById('sc-pollmode').value;
+      if (round)    body.round    = parseInt(round);
+      if (status)   body.status   = status;
+      if (pollMode) body.pollMode = pollMode;
+      try {
+        const { data, ms } = await testPost(body);
+        showResponse('res-setcontrol', data, ms);
+        if (data.success) showToast('Control updated ✓', 'success');
+      } catch(e) {
+        showResponse('res-setcontrol', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runRevealPoll() {
+      const btn = event.target; setLoading(btn);
+      const adminPassword = document.getElementById('admin-pw').value;
+      if (!adminPassword) { resetBtn(btn, '▶ Run'); showToast('Enter admin password.','error'); return; }
+      const body = {
+        action: 'revealPoll',
+        adminPassword,
+        round: parseInt(document.getElementById('rp-round').value),
+        mode:  document.getElementById('rp-mode').value
+      };
+      try {
+        const { data, ms } = await testPost(body);
+        showResponse('res-revealpoll', data, ms);
+        if (data.success) showToast(`Poll revealed! ${data.scoresSaved} scores saved.`, 'success');
+      } catch(e) {
+        showResponse('res-revealpoll', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+
+    async function runRescore() {
+      const btn = event.target; setLoading(btn);
+      const adminPassword = document.getElementById('admin-pw').value;
+      if (!adminPassword) { resetBtn(btn, '▶ Run'); showToast('Enter admin password.','error'); return; }
+      const body = {
+        action: 'rescoreRound',
+        adminPassword,
+        round: parseInt(document.getElementById('rr-round').value)
+      };
+      try {
+        const { data, ms } = await testPost(body);
+        showResponse('res-rescore', data, ms);
+        if (data.success) showToast(`${data.requeued} submissions requeued.`, 'success');
+      } catch(e) {
+        showResponse('res-rescore', { success: false, error: 'NETWORK_ERROR' }, 0);
+      }
+      resetBtn(btn, '▶ Run');
+    }
+  </script>
+</body>
+</html>

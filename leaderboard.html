@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Wars — Leaderboard</title>
+  <meta name="description" content="Live leaderboard for Prompt Wars — see who's winning in real time!" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Full page leaderboard ── */
+    body { background: #060616; }
+
+    .lb-header {
+      position: relative;
+      z-index: 10;
+      padding: 28px 32px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .lb-event-title {
+      font-size: clamp(1.5rem, 4vw, 2.8rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--gold), #FF8C00 50%, var(--primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .lb-sub {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .lb-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .lb-round-tag {
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .lb-updated {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* Trophy heading */
+    .trophy-section {
+      text-align: center;
+      padding: 16px 0 32px;
+      position: relative;
+      z-index: 5;
+    }
+    .trophy-emoji {
+      font-size: 4rem;
+      display: block;
+      animation: float 4s ease-in-out infinite;
+      margin-bottom: 8px;
+    }
+    .trophy-notice {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    /* Table wrapper */
+    .lb-list {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 60px;
+    }
+
+    .lb-row {
+      animation: fadeInUp 0.5s cubic-bezier(0.4,0,0.2,1) both;
+    }
+    .lb-row:hover { transform: translateX(6px); }
+
+    .team-name-lb {
+      font-size: clamp(0.95rem, 2.5vw, 1.2rem);
+      font-weight: 700;
+    }
+    .team-rank-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .crown-icon {
+      position: absolute;
+      top: -14px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.4rem;
+      animation: float 2.5s ease-in-out infinite;
+    }
+
+    /* Empty / loading */
+    .lb-empty {
+      text-align: center;
+      padding: 80px 24px;
+    }
+    .lb-empty-icon { font-size: 4rem; display: block; margin-bottom: 16px; animation: float 3s ease-in-out infinite; }
+
+    /* Points number animation */
+    .pts-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-align: right;
+    }
+
+    /* PWD modal for leaderboard */
+    .lb-pw-icon { font-size: 4rem; text-align:center; display:block; margin-bottom:16px; animation: float 3s ease-in-out infinite; }
+
+    /* Refresh animation */
+    @keyframes rowUpdate {
+      0%   { opacity: 0; transform: translateX(-20px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    .row-updating { animation: rowUpdate 0.4s cubic-bezier(0.4,0,0.2,1) both; }
+
+    /* Rank change flash */
+    @keyframes rankUp {
+      0%   { background: rgba(0,230,118,0.25); }
+      100% { background: none; }
+    }
+    @keyframes rankDown {
+      0%   { background: rgba(255,64,129,0.15); }
+      100% { background: none; }
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .lb-header { padding: 16px; }
+      .lb-list { padding: 0 0 40px; }
+    }
+    @media (min-width: 900px) {
+      .lb-header { padding: 32px 48px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Aurora Background -->
+  <div class="aurora">
+    <div class="aurora-band aurora-1"></div>
+    <div class="aurora-band aurora-2"></div>
+    <div class="aurora-band aurora-3"></div>
+  </div>
+
+  <!-- Password Modal -->
+  <div class="modal-overlay show" id="pw-modal">
+    <div class="modal">
+      <div class="glass-card" style="text-align:center">
+        <span class="lb-pw-icon">🏆</span>
+        <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:6px;">Live Leaderboard</h2>
+        <p class="text-muted text-sm mb-6">Enter the host password to view the leaderboard.</p>
+        <div class="form-group" style="text-align:left">
+          <label for="lb-pw-input">Password</label>
+          <input type="password" id="lb-pw-input" class="form-input" placeholder="••••••••" autocomplete="off" />
+        </div>
+        <button class="btn btn-primary btn-full" id="lb-pw-btn">
+          <span id="lb-pw-btn-text">View Leaderboard</span>
+          <div class="spinner hidden" id="lb-pw-spinner"></div>
+        </button>
+        <p id="lb-pw-error" style="color:var(--danger);font-size:0.85rem;margin-top:10px;display:none;">Incorrect password.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Header -->
+  <div id="lb-main" style="display:none;">
+    <header class="lb-header anim-fade-down">
+      <div>
+        <h1 class="lb-event-title" id="lb-event-name">Prompt Wars</h1>
+        <p class="lb-sub">🏆 Live Leaderboard — Auto-refreshes every 10s</p>
+      </div>
+      <div class="lb-meta">
+        <span class="lb-round-tag" id="lb-round-info">Round — · —</span>
+        <span class="lb-updated" id="lb-last-updated">—</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="dot dot-pulse" style="background:var(--success)"></div>
+          <span style="font-size:0.78rem;color:var(--text-muted);">Live</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="container-md">
+      <div class="trophy-section anim-fade-up">
+        <span class="trophy-emoji">🏆</span>
+        <p class="trophy-notice">Rankings · Updated in Real Time</p>
+      </div>
+
+      <!-- Loading -->
+      <div id="lb-loading" class="lb-empty">
+        <span class="lb-empty-icon">⏳</span>
+        <p style="font-weight:700;margin-bottom:8px;">Loading scores…</p>
+        <p class="text-muted text-sm">Fetching latest leaderboard data</p>
+      </div>
+
+      <!-- Empty -->
+      <div id="lb-empty" class="lb-empty hidden">
+        <span class="lb-empty-icon">🎯</span>
+        <p style="font-weight:700;margin-bottom:8px;">No scores yet!</p>
+        <p class="text-muted text-sm">Scores will appear here after the first round is scored.</p>
+      </div>
+
+      <!-- Leaderboard rows -->
+      <div class="lb-list" id="lb-list"></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+  <script>
+    let lbPassword = '';
+    let refreshInterval = null;
+    let previousRanks = {};
+
+    // ── Password ──────────────────────────────────────────────
+    document.getElementById('lb-pw-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('lb-pw-btn').click();
+    });
+
+    document.getElementById('lb-pw-btn').addEventListener('click', async () => {
+      const pw = document.getElementById('lb-pw-input').value.trim();
+      if (!pw) return;
+      document.getElementById('lb-pw-btn-text').textContent = 'Loading…';
+      document.getElementById('lb-pw-spinner').classList.remove('hidden');
+      document.getElementById('lb-pw-btn').disabled = true;
+      document.getElementById('lb-pw-error').style.display = 'none';
+
+      const res = await callAPIGet({ action: 'leaderboard', password: pw });
+      if (res.success) {
+        lbPassword = pw;
+        sessionStorage.setItem('pw_lb_pass', pw);
+        closePwModal();
+        renderLeaderboard(res);
+        startAutoRefresh();
+      } else {
+        document.getElementById('lb-pw-error').style.display = 'block';
+        document.getElementById('lb-pw-btn-text').textContent = 'View Leaderboard';
+        document.getElementById('lb-pw-spinner').classList.add('hidden');
+        document.getElementById('lb-pw-btn').disabled = false;
+      }
+    });
+
+    function closePwModal() {
+      const modal = document.getElementById('pw-modal');
+      modal.classList.remove('show');
+      setTimeout(() => { modal.style.display = 'none'; }, 300);
+      document.getElementById('lb-main').style.display = 'block';
+      document.getElementById('lb-main').style.animation = 'fadeIn 0.5s ease both';
+    }
+
+    // ── Init ──────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = sessionStorage.getItem('pw_lb_pass');
+      if (saved) {
+        lbPassword = saved;
+        closePwModal();
+        fetchLeaderboard();
+        startAutoRefresh();
+      }
+    });
+
+    // ── Auto Refresh ──────────────────────────────────────────
+    function startAutoRefresh() {
+      fetchLeaderboard();
+      refreshInterval = setInterval(fetchLeaderboard, 10000);
+    }
+
+    async function fetchLeaderboard() {
+      const [lbRes, statusRes] = await Promise.all([
+        callAPIGet({ action: 'leaderboard', password: lbPassword }),
+        callAPIGet({ action: 'status' })
+      ]);
+
+      if (statusRes.success) {
+        document.getElementById('lb-event-name').textContent = statusRes.eventName || 'Prompt Wars';
+        document.title = (statusRes.eventName || 'Prompt Wars') + ' — Leaderboard';
+        document.getElementById('lb-round-info').textContent =
+          `Round ${statusRes.roundNumber} · ${statusRes.status === 'open' ? '🟢 Open' : '🔴 Closed'}`;
+      }
+
+      if (!lbRes.success) {
+        if (lbRes.error === 'UNAUTHORIZED') {
+          sessionStorage.removeItem('pw_lb_pass');
+          window.location.reload();
+        }
+        return;
+      }
+
+      renderLeaderboard(lbRes);
+    }
+
+    function renderLeaderboard(data) {
+      document.getElementById('lb-loading').classList.add('hidden');
+      const list = data.leaderboard || [];
+
+      if (data.lastUpdated) {
+        const d = new Date(data.lastUpdated);
+        document.getElementById('lb-last-updated').textContent =
+          'Updated ' + d.toLocaleTimeString();
+      }
+
+      if (list.length === 0) {
+        document.getElementById('lb-empty').classList.remove('hidden');
+        document.getElementById('lb-list').innerHTML = '';
+        return;
+      }
+
+      document.getElementById('lb-empty').classList.add('hidden');
+
+      const container = document.getElementById('lb-list');
+
+      // Detect rank changes for animation
+      const newRanks = {};
+      list.forEach(t => { newRanks[t.teamName] = t.rank; });
+
+      container.innerHTML = '';
+      list.forEach((team, idx) => {
+        const prevRank = previousRanks[team.teamName];
+        const rankChanged = prevRank && prevRank !== team.rank;
+        const rankUp = prevRank && prevRank > team.rank;
+
+        const row = document.createElement('div');
+        row.className = 'lb-row' + (rankChanged ? ' row-updating' : '');
+        if (rankChanged) row.style.setProperty('--anim', rankUp ? 'rankUp' : 'rankDown');
+
+        const rankClass = team.rank === 1 ? 'r1' : team.rank === 2 ? 'r2' : team.rank === 3 ? 'r3' : 'rn';
+        const rowClass = `lb-row rank-${Math.min(team.rank, 4)}`;
+        row.className = rowClass + (rankChanged ? ' row-updating' : '');
+        row.style.animationDelay = `${idx * 0.07}s`;
+
+        row.innerHTML = `
+          <div style="position:relative">
+            ${team.rank === 1 ? '<span class="crown-icon">👑</span>' : ''}
+            <div class="rank-badge ${rankClass}">${team.rank}</div>
+          </div>
+          <div>
+            <p class="team-name-lb">${escapeHTML(team.teamName)}</p>
+            <p class="team-rank-sub">${getRankLabel(team.rank)}</p>
+          </div>
+          <div style="text-align:right">
+            <p class="pts-label">Points</p>
+            <p class="point-counter" data-target="${team.totalPoints}">${formatPts(team.totalPoints)}</p>
+          </div>`;
+
+        container.appendChild(row);
+      });
+
+      previousRanks = newRanks;
+      animateCounters();
+    }
+
+    function getRankLabel(rank) {
+      if (rank === 1) return '🥇 Champion';
+      if (rank === 2) return '🥈 Runner-up';
+      if (rank === 3) return '🥉 Third Place';
+      return `#${rank} Ranked`;
+    }
+
+    function formatPts(n) {
+      return (n || 0).toLocaleString() + ' pts';
+    }
+
+    function animateCounters() {
+      document.querySelectorAll('.point-counter[data-target]').forEach(el => {
+        const target = parseInt(el.getAttribute('data-target')) || 0;
+        const start = 0;
+        const duration = 800;
+        const startTime = performance.now();
+        function update(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const ease = 1 - Math.pow(1 - progress, 3);
+          el.textContent = Math.round(start + (target - start) * ease).toLocaleString() + ' pts';
+          if (progress < 1) requestAnimationFrame(update);
+        }
+        requestAnimationFrame(update);
+      });
+    }
+
+    function escapeHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Page visibility
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        clearInterval(refreshInterval);
+      } else if (lbPassword) {
+        fetchLeaderboard();
+        startAutoRefresh();
+      }
+    });
+  </script>
+</body>
+</html>
