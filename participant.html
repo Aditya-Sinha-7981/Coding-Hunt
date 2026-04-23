@@ -435,6 +435,11 @@
             <button class="conf-btn conf-safe" id="conf-safe" type="button">Not sure</button>
           </div>
 
+          <button class="btn btn-primary btn-full btn-lg hidden" id="commit-submit-btn" type="button" style="margin-top:10px;" disabled>
+            <span id="commit-submit-text">Submit vote</span>
+            <div class="spinner hidden" id="commit-submit-spinner"></div>
+          </button>
+
           <p class="cooldown-text" id="cooldown-text"></p>
 
           <!-- Live Poll Results -->
@@ -734,10 +739,9 @@
       document.getElementById('upload-status-text').textContent = text;
     }
 
-    // ── Poll Voting ───────────────────────────────────────────
-    document.getElementById('vote-btn-a').addEventListener('click', () => castVote('A'));
-    document.getElementById('vote-btn-b').addEventListener('click', () => castVote('B'));
-    // NO_COMMIT button is created below in HTML patch
+    // ── Poll / Commit Voting ──────────────────────────────────
+    document.getElementById('vote-btn-a').addEventListener('click', () => handleVotePress('A'));
+    document.getElementById('vote-btn-b').addEventListener('click', () => handleVotePress('B'));
 
     let selectedCommitVote = null;
     let selectedCommitConfidence = null;
@@ -749,6 +753,7 @@
       const confWrap = document.getElementById('confidence-wrap');
       const confSure = document.getElementById('conf-sure');
       const confSafe = document.getElementById('conf-safe');
+      const commitSubmitBtn = document.getElementById('commit-submit-btn');
 
       if (isCommit) {
         voteGrid.classList.add('commit');
@@ -756,6 +761,7 @@
         riskCard.classList.remove('hidden');
         // Only show confidence once A/B is chosen.
         confWrap.classList.add('hidden');
+        commitSubmitBtn.classList.remove('hidden');
         // reset per-round selections
         selectedCommitVote = null;
         selectedCommitConfidence = null;
@@ -763,11 +769,13 @@
         confSafe.disabled = true;
         confSure.classList.remove('active');
         confSafe.classList.remove('active');
+        commitSubmitBtn.disabled = true;
       } else {
         voteGrid.classList.remove('commit');
         noBtn.classList.add('hidden');
         riskCard.classList.add('hidden');
         confWrap.classList.add('hidden');
+        commitSubmitBtn.classList.add('hidden');
       }
     }
 
@@ -786,6 +794,7 @@
         selectedCommitConfidence = parts[1] || null;
         highlightVoteBtn(selectedCommitVote);
         updateConfidenceUI();
+        updateCommitSubmitBtn();
         return;
       }
       highlightVoteBtn(saved);
@@ -805,17 +814,59 @@
       confSafe.classList.toggle('active', selectedCommitConfidence === 'not_sure');
     }
 
-    document.getElementById('vote-btn-no').addEventListener('click', () => castVote('NO_COMMIT'));
+    document.getElementById('vote-btn-no').addEventListener('click', () => handleVotePress('NO_COMMIT'));
     document.getElementById('conf-sure').addEventListener('click', () => {
       selectedCommitConfidence = 'sure';
       updateConfidenceUI();
-      if (selectedCommitVote === 'A' || selectedCommitVote === 'B') castVote(selectedCommitVote);
+      updateCommitSubmitBtn();
     });
     document.getElementById('conf-safe').addEventListener('click', () => {
       selectedCommitConfidence = 'not_sure';
       updateConfidenceUI();
-      if (selectedCommitVote === 'A' || selectedCommitVote === 'B') castVote(selectedCommitVote);
+      updateCommitSubmitBtn();
     });
+
+    document.getElementById('commit-submit-btn').addEventListener('click', submitCommitVote);
+
+    function updateCommitSubmitBtn() {
+      if (currentType !== 'commit') return;
+      const btn = document.getElementById('commit-submit-btn');
+      if (!btn) return;
+      const valid = isCommitSelectionValid();
+      btn.disabled = !valid || cooldownRemaining > 0;
+      document.getElementById('commit-submit-text').textContent =
+        cooldownRemaining > 0 ? `Wait ${cooldownRemaining}s` : 'Submit vote';
+    }
+
+    function isCommitSelectionValid() {
+      if (selectedCommitVote === 'NO_COMMIT') return true;
+      if (selectedCommitVote === 'A' || selectedCommitVote === 'B') {
+        return selectedCommitConfidence === 'sure' || selectedCommitConfidence === 'not_sure';
+      }
+      return false;
+    }
+
+    function handleVotePress(vote) {
+      // Poll rounds: 1-tap vote (existing behavior)
+      if (currentType !== 'commit') {
+        castVote(vote);
+        return;
+      }
+
+      // Commit rounds: selection only (submit separately)
+      selectedCommitVote = vote;
+      if (vote === 'NO_COMMIT') selectedCommitConfidence = null;
+      highlightVoteBtn(vote);
+      updateConfidenceUI();
+      updateCommitSubmitBtn();
+    }
+
+    async function submitCommitVote() {
+      if (currentType !== 'commit') return;
+      if (!isCommitSelectionValid()) return;
+      if (cooldownRemaining > 0) return;
+      await castVote(selectedCommitVote);
+    }
 
     async function castVote(vote) {
       if (cooldownRemaining > 0) return;
@@ -823,24 +874,15 @@
       const btnA = document.getElementById('vote-btn-a');
       const btnB = document.getElementById('vote-btn-b');
       const btnN = document.getElementById('vote-btn-no');
+      const commitSubmitBtn = document.getElementById('commit-submit-btn');
       btnA.disabled = true; btnB.disabled = true;
       if (btnN) btnN.disabled = true;
+      if (commitSubmitBtn && currentType === 'commit') commitSubmitBtn.disabled = true;
 
       let confidence = undefined;
       if (currentType === 'commit') {
-        selectedCommitVote = vote;
-        highlightVoteBtn(vote);
-        if (vote === 'NO_COMMIT') {
-          selectedCommitConfidence = null;
-        }
-        updateConfidenceUI();
-
         if (vote === 'A' || vote === 'B') {
-          // Default to safe choice to reduce confusion/friction.
-          if (selectedCommitConfidence !== 'sure' && selectedCommitConfidence !== 'not_sure') {
-            selectedCommitConfidence = 'not_sure';
-            updateConfidenceUI();
-          }
+          // Commit submit requires explicit confidence selection (no auto-default here).
           confidence = selectedCommitConfidence;
         }
       }
@@ -870,6 +912,7 @@
         showToast(getErrorMessage(res.error), 'error');
         btnA.disabled = false; btnB.disabled = false;
         if (btnN) btnN.disabled = false;
+        updateCommitSubmitBtn();
       }
     }
 
@@ -888,8 +931,10 @@
       const btnA = document.getElementById('vote-btn-a');
       const btnB = document.getElementById('vote-btn-b');
       const btnN = document.getElementById('vote-btn-no');
+      const commitSubmitBtn = document.getElementById('commit-submit-btn');
       btnA.disabled = true; btnB.disabled = true;
       if (btnN) btnN.disabled = true;
+      if (commitSubmitBtn && currentType === 'commit') commitSubmitBtn.disabled = true;
       clearInterval(cooldownTimer);
       cooldownTimer = setInterval(() => {
         cooldownRemaining--;
@@ -898,11 +943,14 @@
           cooldownText.textContent = '';
           btnA.disabled = false; btnB.disabled = false;
           if (btnN && currentType === 'commit') btnN.disabled = false;
+          updateCommitSubmitBtn();
         } else {
           cooldownText.textContent = `⏱ You can change your choice in ${cooldownRemaining}s`;
+          updateCommitSubmitBtn();
         }
       }, 1000);
       cooldownText.textContent = `⏱ You can change your choice in ${cooldownRemaining}s`;
+      updateCommitSubmitBtn();
     }
 
     // ── Poll Results ──────────────────────────────────────────
